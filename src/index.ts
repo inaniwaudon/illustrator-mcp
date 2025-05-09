@@ -1,0 +1,15 @@
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { server } from "./server";
+
+import "./features/document";
+import "./features/item";
+import "./features/path";
+import "./features/text";
+
+export { server };
+
+(async () => {
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.log("MCP Server launched");
+})();

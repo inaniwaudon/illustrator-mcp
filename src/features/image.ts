@@ -13,8 +13,8 @@ import {
 
 server.tool(
   "create_images",
-  "複数の画像をドキュメントに配置する．",
-  { paths: z.array(z.string()).describe("画像のパス") },
+  "Place multiple images in the document.",
+  { paths: z.array(z.string()).describe("Image paths") },
   async ({ paths }) => {
     const script = `
 var doc = ${getDocumentScript};
@@ -33,15 +33,19 @@ JSON.stringify(result);
       content: [
         {
           type: "text",
-          text: `正常に配置されました．\n\n${output}`,
+          text: `Placed successfully.\n\n${output}`,
         },
       ],
     };
   }
 );
 
-server.tool("list_images", "既存の画像の情報を取得する", {}, async () => {
-  const script = `
+server.tool(
+  "list_images",
+  "Get information of existing images",
+  {},
+  async () => {
+    const script = `
 ${jsonScript}
 
 var doc = ${getDocumentScript};
@@ -63,38 +67,39 @@ for (var i = 0; i < doc.placedItems.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script, [ptToMmDefinition]);
-  return {
-    content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
-  };
-});
+    const output = executeExtendScript(script, [ptToMmDefinition]);
+    return {
+      content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
+    };
+  }
+);
 
 const multipleImageChangeSchema = z
   .array(
     z.object({
       uuid: z.string().describe("UUID"),
-      path: z.string().describe("画像のパス"),
+      path: z.string().describe("Image path"),
       x: z
         .string()
         .optional()
-        .describe("x 座標．左上を原点とする．mm か Q で指定する．"),
+        .describe("X coordinate (origin at top left, specify in mm or Q)"),
       y: z
         .string()
         .optional()
-        .describe("y 座標．左上を原点とする．mm か Q で指定する．"),
-      width: z.string().optional().describe("幅．mm か Q で指定する．"),
-      height: z.string().optional().describe("高さ．mm か Q で指定する．"),
+        .describe("Y coordinate (origin at top left, specify in mm or Q)"),
+      width: z.string().optional().describe("Width (specify in mm or Q)"),
+      height: z.string().optional().describe("Height (specify in mm or Q)"),
       maintainAspectRatio: z
         .boolean()
         .optional()
-        .describe("アスペクト比を維持するかどうか．"),
+        .describe("Whether to maintain aspect ratio"),
     })
   )
-  .describe("変更する画像の UUID および属性の配列");
+  .describe("Array of UUIDs and attributes of images to change");
 
 server.tool(
   "change_images",
-  "複数の画像の属性を変更する",
+  "Change attributes of multiple images",
   {
     changes: multipleImageChangeSchema,
   },
@@ -130,7 +135,7 @@ server.tool(
 `;
     executeExtendScript(script, [getPageItemDefinition, toPtDefinition]);
     return {
-      content: [{ type: "text", text: "正常に変更されました．" }],
+      content: [{ type: "text", text: "Changed successfully." }],
     };
   }
 );

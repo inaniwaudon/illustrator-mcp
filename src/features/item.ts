@@ -9,9 +9,9 @@ import {
 
 server.tool(
   "select_items",
-  "複数のオブジェクトを選択する",
+  "Select multiple objects",
   {
-    uuids: z.array(z.string()).describe("UUID の配列"),
+    uuids: z.array(z.string()).describe("Array of UUIDs"),
   },
   async ({ uuids }) => {
     const script = `
@@ -30,16 +30,16 @@ for (var i = 0; i < doc.pageItems.length; i++) {
 `;
     executeExtendScript(script, []);
     return {
-      content: [{ type: "text", text: "オブジェクトを選択しました．" }],
+      content: [{ type: "text", text: "Objects selected." }],
     };
   }
 );
 
 server.tool(
   "group_items",
-  "複数のオブジェクトをグループ化する",
+  "Group multiple objects",
   {
-    uuids: z.array(z.string()).describe("UUID の配列"),
+    uuids: z.array(z.string()).describe("Array of UUIDs"),
   },
   async ({ uuids }) => {
     const script = `
@@ -59,16 +59,16 @@ for (var i = 0; i < doc.pageItems.length; i++) {
 `;
     executeExtendScript(script, []);
     return {
-      content: [{ type: "text", text: "オブジェクトをグループ化しました．" }],
+      content: [{ type: "text", text: "Objects grouped." }],
     };
   }
 );
 
 server.tool(
   "remove_items",
-  "複数のオブジェクトを削除する",
+  "Remove multiple objects",
   {
-    uuids: z.array(z.string()).describe("UUID の配列"),
+    uuids: z.array(z.string()).describe("Array of UUIDs"),
   },
   async ({ uuids }) => {
     const script = `
@@ -86,7 +86,7 @@ for (var i = 0; i < doc.pageItems.length; i++) {
 `;
     executeExtendScript(script, []);
     return {
-      content: [{ type: "text", text: "オブジェクトを削除しました．" }],
+      content: [{ type: "text", text: "Objects removed." }],
     };
   }
 );
@@ -94,17 +94,17 @@ for (var i = 0; i < doc.pageItems.length; i++) {
 const maskItemsSchema = z
   .array(
     z.object({
-      maskUuid: z.string().describe("マスクするパスの UUID"),
+      maskUuid: z.string().describe("UUID of the path to be used as a mask"),
       maskedUuids: z
         .array(z.string())
-        .describe("マスクされる対象のオブジェクトの UUID の配列"),
+        .describe("Array of UUIDs of objects to be masked"),
     })
   )
-  .describe("マスクの情報");
+  .describe("Mask information");
 
 server.tool(
   "mask_items",
-  "複数のオブジェクトをマスクする",
+  "Mask multiple objects",
   {
     masks: maskItemsSchema,
   },
@@ -116,13 +116,13 @@ for (var i = 0; i < masks.length; i++) {
   var maskInfo = masks[i];
   var group = doc.groupItems.add();
 
-  // マスク対象のオブジェクトを追加
+  // Add objects to be masked
   for (var j = 0; j < maskInfo.maskedUuids.length; j++) {
     var maskedItem = getPageItemScript(maskInfo.maskedUuids[j]);
     maskedItem.moveToBeginning(group);
   }
 
-  // パスを追加
+  // Add mask path
   var maskItem = getPageItemScript(maskInfo.maskUuid);
   maskItem.moveToBeginning(group);
 
@@ -132,7 +132,7 @@ for (var i = 0; i < masks.length; i++) {
 `;
     executeExtendScript(script, [getPageItemDefinition]);
     return {
-      content: [{ type: "text", text: "オブジェクトを削除しました．" }],
+      content: [{ type: "text", text: "Objects masked." }],
     };
   }
 );

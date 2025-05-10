@@ -13,8 +13,8 @@ import { jsonScript } from "../extend-utils/json";
 
 server.tool(
   "create_textframes",
-  "複数のテキストフレームをドキュメントに配置する．",
-  { count: z.number().describe("配置するテキストフレームの数") },
+  "Place multiple text frames in the document.",
+  { count: z.number().describe("Number of text frames to place") },
   async ({ count }) => {
     const script = `
 var doc = ${getDocumentScript};
@@ -31,7 +31,7 @@ JSON.stringify(result);
       content: [
         {
           type: "text",
-          text: `正常に配置されました．\n\n${output}`,
+          text: `Placed successfully.\n\n${output}`,
         },
       ],
     };
@@ -40,7 +40,7 @@ JSON.stringify(result);
 
 server.tool(
   "list_textframes",
-  "既存のテキストフレームの情報を取得する",
+  "Get information of existing text frames",
   {},
   async () => {
     const script = `
@@ -68,7 +68,7 @@ JSON.stringify(result);
 `;
     const output = executeExtendScript(script, [ptToMmDefinition]);
     return {
-      content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
+      content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
     };
   }
 );
@@ -77,38 +77,40 @@ const changeTextFramesSchema = z
   .array(
     z.object({
       uuid: z.string().describe("UUID"),
-      text: z.string().optional().describe("テキストの内容"),
-      fontName: z.string().optional().describe("フォント名"),
+      text: z.string().optional().describe("Text content"),
+      fontName: z.string().optional().describe("Font name"),
       fontSize: z
         .string()
         .optional()
-        .describe("フォントサイズ．mm か Q で指定する．"),
+        .describe("Font size (specify in mm or Q)"),
       justification: z
         .enum(["left", "center", "right", "justify"])
         .optional()
         .describe(
-          "テキストの揃え方向．left：左揃え，center：中央揃え，right：右揃え，justify：両端揃え．"
+          "Text alignment direction. left: left, center: center, right: right, justify: justify."
         ),
       colorCmyk: z
         .array(z.number())
         .length(4)
         .optional()
-        .describe("文字色．0–100 の CMYK の配列で指定する．"),
+        .describe("Text color (array of CMYK values from 0 to 100)"),
       position: z
         .array(z.string())
         .optional()
-        .describe("x 座標，y座標．左上を原点とする．mm か Q で指定する．"),
+        .describe(
+          "X and Y coordinates (origin at top left, specify in mm or Q)"
+        ),
       size: z
         .array(z.string())
         .optional()
-        .describe("幅，高さ．mm か Q で指定する．"),
+        .describe("Width and height (specify in mm or Q)"),
     })
   )
-  .describe("変更するテキストフレームの UUID および属性の配列");
+  .describe("Array of UUIDs and attributes of text frames to change");
 
 server.tool(
   "change_textframes",
-  "複数のテキストフレームの属性を変更する",
+  "Change attributes of multiple text frames",
   {
     changes: changeTextFramesSchema,
   },
@@ -134,15 +136,15 @@ server.tool(
       }
       if (change.justification) {
         lines.push(`
-var str = "${change.justification}";
+var str = \"${change.justification}\";
 var justification = Justification.FULLJUSTIFY;
-if (str === "left") {
+if (str === \"left\") {
   justification = Justification.LEFT;
 }
-if (str === "center") {
+if (str === \"center\") {
   justification = Justification.CENTER;
 }
-if (str === "right") {
+if (str === \"right\") {
   justification = Justification.RIGHT;
 }
 item.paragraphs[0].paragraphAttributes.justification = justification;`);
@@ -174,7 +176,7 @@ item.textRange.characterAttributes.fillColor = cmyk;`);
     }
     executeExtendScript(lines.join("\n"), []);
     return {
-      content: [{ type: "text", text: "正常に変更されました．" }],
+      content: [{ type: "text", text: "Changed successfully." }],
     };
   }
 );
@@ -182,34 +184,31 @@ item.textRange.characterAttributes.fillColor = cmyk;`);
 const changeCharactersSchema = z.array(
   z.object({
     range: z.object({ from: z.number(), to: z.number() }),
-    fontName: z.string().optional().describe("フォント名"),
-    fontSize: z
-      .string()
-      .optional()
-      .describe("フォントサイズ．mm か Q で指定する．"),
+    fontName: z.string().optional().describe("Font name"),
+    fontSize: z.string().optional().describe("Font size (specify in mm or Q)"),
     baselineShift: z
       .string()
       .optional()
-      .describe("ベースラインシフト．mm か Q で指定する．"),
+      .describe("Baseline shift (specify in mm or Q)"),
     horizontalScale: z
       .number()
       .optional()
-      .describe("水平比率．100 で 100% を示す．"),
+      .describe("Horizontal scale (100 means 100%)"),
     verticalScale: z
       .number()
       .optional()
-      .describe("垂直比率．100 で 100% を示す．"),
+      .describe("Vertical scale (100 means 100%)"),
     colorCmyk: z
       .array(z.number())
       .length(4)
       .optional()
-      .describe("文字色．0–100 の CMYK の配列で指定する．"),
+      .describe("Text color (array of CMYK values from 0 to 100)"),
   })
 );
 
 server.tool(
   "change_characters",
-  "単一のテキストフレームにおける，複数の範囲内の文字の属性を変更する",
+  "Change attributes of multiple character ranges in a single text frame",
   {
     uuid: z.string(),
     changes: changeCharactersSchema,
@@ -225,7 +224,7 @@ server.tool(
 `);
       if (change.fontName) {
         lines.push(
-          `charAttr.textFont = app.textFonts.getByName("${change.fontName}");`
+          `charAttr.textFont = app.textFonts.getByName(\"${change.fontName}\");`
         );
       }
       if (change.fontSize) {
@@ -255,12 +254,12 @@ charAttr.fillColor = cmyk;`);
     }
     executeExtendScript(lines.join("\n"), []);
     return {
-      content: [{ type: "text", text: "正常に変更されました．" }],
+      content: [{ type: "text", text: "Changed successfully." }],
     };
   }
 );
 
-server.tool("list_fonts", "使用可能なフォント一覧を取得する", {}, async () => {
+server.tool("list_fonts", "Get list of available fonts", {}, async () => {
   const script = `
 ${jsonScript}
 var fonts = app.textFonts;
@@ -272,6 +271,6 @@ JSON.stringify(result);
 `;
   const output = executeExtendScript(script, []);
   return {
-    content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
+    content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
   };
 });

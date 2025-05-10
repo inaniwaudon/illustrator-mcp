@@ -5,9 +5,9 @@ import { executeExtendScript } from "../extend-utils/utils";
 
 server.tool(
   "open_document",
-  "ドキュメントを開く",
+  "Open a document",
   {
-    path: z.string().describe("開くドキュメントの絶対パス"),
+    path: z.string().describe("Absolute path of the document to open"),
   },
   async ({ path }) => {
     const script = `
@@ -16,7 +16,7 @@ var doc = app.open(file);
 `;
     executeExtendScript(script, []);
     return {
-      content: [{ type: "text", text: "ドキュメントを開きました．" }],
+      content: [{ type: "text", text: "Document opened." }],
     };
   }
 );

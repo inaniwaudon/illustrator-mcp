@@ -9,7 +9,7 @@ import {
   ptToMmDefinition,
   toPt,
 } from "../extend-utils/utils";
-import { jsonScript } from "../extend-utils/json";
+import { jsonDefinition } from "../extend-utils/json";
 
 server.tool(
   "create_textframes",
@@ -44,8 +44,6 @@ server.tool(
   {},
   async () => {
     const script = `
-${jsonScript}
-
 var doc = ${getDocumentScript};
 var result = [];
 for (var i = 0; i < doc.textFrames.length; i++) {
@@ -66,7 +64,10 @@ for (var i = 0; i < doc.textFrames.length; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script, [ptToMmDefinition]);
+    const output = executeExtendScript(script, [
+      jsonDefinition,
+      ptToMmDefinition,
+    ]);
     return {
       content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
     };
@@ -261,7 +262,6 @@ charAttr.fillColor = cmyk;`);
 
 server.tool("list_fonts", "Get list of available fonts", {}, async () => {
   const script = `
-${jsonScript}
 var fonts = app.textFonts;
 var result = [];
 for (var i = 0; i < fonts.length; i++) {
@@ -269,7 +269,7 @@ for (var i = 0; i < fonts.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script, []);
+  const output = executeExtendScript(script, [jsonDefinition]);
   return {
     content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
   };

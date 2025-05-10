@@ -1,7 +1,7 @@
 import z from "zod";
 
 import { server } from "../server";
-import { jsonScript } from "../extend-utils/json";
+import { jsonDefinition } from "../extend-utils/json";
 import {
   createUUIDScript,
   executeExtendScript,
@@ -46,8 +46,6 @@ server.tool(
   {},
   async () => {
     const script = `
-${jsonScript}
-
 var doc = ${getDocumentScript};
 var result = [];
 for (var i = 0; i < doc.placedItems.length; i++) {
@@ -67,7 +65,10 @@ for (var i = 0; i < doc.placedItems.length; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script, [ptToMmDefinition]);
+    const output = executeExtendScript(script, [
+      jsonDefinition,
+      ptToMmDefinition,
+    ]);
     return {
       content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
     };

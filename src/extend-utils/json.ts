@@ -1,4 +1,4 @@
-export const jsonScript = `
+export const jsonDefinition = `
 if (typeof JSON !== "object") {
     JSON = {};
 }

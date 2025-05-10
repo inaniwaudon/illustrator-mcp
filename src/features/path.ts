@@ -9,26 +9,27 @@ import {
   ptToMmDefinition,
 } from "../extend-utils/utils";
 import { server } from "../server";
-import { jsonScript } from "../extend-utils/json";
+import { jsonDefinition } from "../extend-utils/json";
 
-// 矩形
+// Rectangle
 const createRectsSchema = z.array(
   z.object({
     position: z
       .array(z.string())
-      .describe("x 座標，y座標．左上を原点とする．mm か Q で指定する．"),
-    size: z.array(z.string()).describe("幅，高さ．mm か Q で指定する．"),
+      .describe(
+        "x and y coordinates. Origin is at top left. Specify in mm or Q."
+      ),
+    size: z.array(z.string()).describe("Width and height. Specify in mm or Q."),
   })
 );
 
 server.tool(
   "create_rects",
-  "矩形を表す複数のパスをドキュメントに配置する",
+  "Place multiple paths representing rectangles in the document",
   { rects: createRectsSchema },
   async ({ rects }) => {
     let script = [
       `
-${jsonScript}
 var doc = ${getDocumentScript};
 var result = [];`,
     ];
@@ -46,14 +47,14 @@ var result = [];`,
   }());`);
     }
     script.push(`JSON.stringify(result);`);
-    const output = executeExtendScript(script.join("\n"), []);
+    const output = executeExtendScript(script.join("\n"), [jsonDefinition]);
     return {
-      content: [{ type: "text", text: `正常に作成しました．\n\n${output}` }],
+      content: [{ type: "text", text: `Created successfully.\n\n${output}` }],
     };
   }
 );
 
-// 直線
+// Line
 const createLinesSchema = z.array(
   z.object({
     points: z
@@ -62,19 +63,18 @@ const createLinesSchema = z.array(
         to: z.array(z.string()).length(2),
       })
       .describe(
-        "始点および終点の x, y 座標．左上を原点とする．mm か Q で指定する．"
+        "x and y coordinates of start and end points. Origin is at top left. Specify in mm or Q."
       ),
   })
 );
 
 server.tool(
   "create_lines",
-  "直線を表す複数のパスをドキュメントに配置する．",
+  "Place multiple paths representing lines in the document.",
   { lines: createLinesSchema },
   async ({ lines }) => {
     let script = [
       `
-${jsonScript}
 var doc = ${getDocumentScript};
 var result = [];`,
     ];
@@ -97,18 +97,20 @@ var result = [];`,
       );
     }
     script.push(`JSON.stringify(result);`);
-    const output = executeExtendScript(script.join("\n"), []);
+    const output = executeExtendScript(script.join("\n"), [jsonDefinition]);
     return {
-      content: [{ type: "text", text: `正常に作成しました．\n\n${output}` }],
+      content: [{ type: "text", text: `Successfully created.\n\n${output}` }],
     };
   }
 );
 
-// 共通
-server.tool("list_pathitems", "既存のパスの情報を取得する", {}, async () => {
-  const script = `
-${jsonScript}
-
+// Common
+server.tool(
+  "list_pathitems",
+  "Get information of existing paths",
+  {},
+  async () => {
+    const script = `
 var doc = ${getDocumentScript};
 var result = [];
 for (var i = 0; i < doc.pathItems.length; i++) {
@@ -125,11 +127,15 @@ for (var i = 0; i < doc.pathItems.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script, [ptToMmDefinition]);
-  return {
-    content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
-  };
-});
+    const output = executeExtendScript(script, [
+      jsonDefinition,
+      ptToMmDefinition,
+    ]);
+    return {
+      content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
+    };
+  }
+);
 
 const multiplePathChangeSchema = z
   .array(
@@ -137,26 +143,28 @@ const multiplePathChangeSchema = z
       uuid: z.string(),
       fillCmyk: z
         .array(z.string())
-        .describe("塗りの色．0 から 100 の範囲で指定する．"),
+        .describe("Fill color. Specify values from 0 to 100."),
       strokeCmyk: z
         .array(z.string())
-        .describe("線の色．0 から 100 の範囲で指定する．"),
-      strokeWidth: z.string().describe("線の太さ．mm か Q で指定する．"),
+        .describe("Stroke color. Specify values from 0 to 100."),
+      strokeWidth: z.string().describe("Stroke width. Specify in mm or Q."),
       position: z
         .array(z.string())
         .optional()
-        .describe("x 座標，y座標．左上を原点とする．mm か Q で指定する．"),
+        .describe(
+          "x and y coordinates. Origin is at top left. Specify in mm or Q."
+        ),
       size: z
         .array(z.string())
         .optional()
-        .describe("幅，高さ．mm か Q で指定する．"),
+        .describe("Width and height. Specify in mm or Q."),
     })
   )
-  .describe("変更するパスの UUID および属性の配列");
+  .describe("Array of UUIDs and attributes of paths to change");
 
 server.tool(
   "change_pathitems",
-  "複数のパスの属性を変更する",
+  "Change attributes of multiple paths.",
   {
     changes: multiplePathChangeSchema,
   },
@@ -166,7 +174,7 @@ server.tool(
       lines.push("(function () {");
       lines.push(`var item = ${getPageItemScript(change.uuid)};`);
 
-      // 塗り
+      // Fill
       if (change.fillCmyk) {
         lines.push(
           `var cmyk = new CMYKColor();
@@ -179,7 +187,7 @@ server.tool(
         );
       }
 
-      // 線
+      // Stroke
       if (change.strokeCmyk) {
         lines.push(
           `var cmyk = new CMYKColor();
@@ -195,7 +203,7 @@ server.tool(
         lines.push(`item.strokeWidth = ${toPt(change.strokeWidth)};`);
       }
 
-      // 座標とサイズ
+      // Position and size
       if (change.position) {
         const x = toPt(change.position[0]);
         const y = -toPt(change.position[1]);
@@ -211,7 +219,7 @@ server.tool(
     }
     executeExtendScript(lines.join("\n"), []);
     return {
-      content: [{ type: "text", text: "正常に変更されました．" }],
+      content: [{ type: "text", text: "Changed successfully." }],
     };
   }
 );

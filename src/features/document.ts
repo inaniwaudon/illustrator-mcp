@@ -14,7 +14,7 @@ server.tool(
 const file = new File("${path}");
 var doc = app.open(file);
 `;
-    executeExtendScript(script);
+    executeExtendScript(script, []);
     return {
       content: [{ type: "text", text: "ドキュメントを開きました．" }],
     };

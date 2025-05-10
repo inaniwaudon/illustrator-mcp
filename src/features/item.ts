@@ -5,9 +5,9 @@ import { executeExtendScript, getDocumentScript } from "../extend-utils/utils";
 
 server.tool(
   "select_items",
-  "オブジェクトを選択する",
+  "複数のオブジェクトを選択する",
   {
-    uuids: z.array(z.string()),
+    uuids: z.array(z.string()).describe("UUID の配列"),
   },
   async ({ uuids }) => {
     const script = `
@@ -24,7 +24,7 @@ for (var i = 0; i < doc.pageItems.length; i++) {
   }
 }
 `;
-    executeExtendScript(script);
+    executeExtendScript(script, []);
     return {
       content: [{ type: "text", text: "オブジェクトを選択しました．" }],
     };
@@ -33,9 +33,9 @@ for (var i = 0; i < doc.pageItems.length; i++) {
 
 server.tool(
   "group_items",
-  "オブジェクトをグループ化する",
+  "複数のオブジェクトをグループ化する",
   {
-    uuids: z.array(z.string()),
+    uuids: z.array(z.string()).describe("UUID の配列"),
   },
   async ({ uuids }) => {
     const script = `
@@ -53,9 +53,35 @@ for (var i = 0; i < doc.pageItems.length; i++) {
   }
 }
 `;
-    executeExtendScript(script);
+    executeExtendScript(script, []);
     return {
       content: [{ type: "text", text: "オブジェクトをグループ化しました．" }],
+    };
+  }
+);
+
+server.tool(
+  "remove_items",
+  "複数のオブジェクトを削除する",
+  {
+    uuids: z.array(z.string()).describe("UUID の配列"),
+  },
+  async ({ uuids }) => {
+    const script = `
+var doc = ${getDocumentScript};
+var uuids = ${JSON.stringify(uuids)};
+for (var i = 0; i < doc.pageItems.length; i++) {
+  var item = doc.pageItems[i];
+  for (var j = 0; j < uuids.length; j++) {
+    if (uuids[j] === item.note) {
+      item.remove();
+      break;
+  }
+}
+`;
+    executeExtendScript(script, []);
+    return {
+      content: [{ type: "text", text: "オブジェクトを削除しました．" }],
     };
   }
 );

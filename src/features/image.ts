@@ -6,9 +6,9 @@ import {
   createUUIDScript,
   executeExtendScript,
   getDocumentScript,
-  getPageItemScript,
-  getPageItemScriptDefinition,
-  ptToMmScript,
+  getPageItemDefinition,
+  ptToMmDefinition,
+  toPtDefinition,
 } from "../extend-utils/utils";
 
 server.tool(
@@ -28,7 +28,7 @@ for (var i = 0; i < paths.length; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script);
+    const output = executeExtendScript(script, []);
     return {
       content: [
         {
@@ -43,7 +43,6 @@ JSON.stringify(result);
 server.tool("list_images", "既存の画像の情報を取得する", {}, async () => {
   const script = `
 ${jsonScript}
-${ptToMmScript}
 
 var doc = ${getDocumentScript};
 var result = [];
@@ -55,14 +54,16 @@ for (var i = 0; i < doc.placedItems.length; i++) {
   result.push({
     uuid: item.note,
     path: item.file.name,
-    position: [ptToMm(item.left), ptToMm(-item.top)],
-    size: [ptToMm(item.width), ptToMm(item.height)],
+    x: ptToMm(item.left),
+    y: ptToMm(-item.top),
+    width: ptToMm(item.width),
+    height: ptToMm(item.height),
     selected: item.selected,
   });
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script);
+  const output = executeExtendScript(script, [ptToMmDefinition]);
   return {
     content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
   };
@@ -73,14 +74,16 @@ const multipleImageChangeSchema = z
     z.object({
       uuid: z.string().describe("UUID"),
       path: z.string().describe("画像のパス"),
-      position: z
-        .array(z.string())
+      x: z
+        .string()
         .optional()
-        .describe("x 座標，y座標．左上を原点とする．mm か Q で指定する．"),
-      size: z
-        .array(z.string())
+        .describe("x 座標．左上を原点とする．mm か Q で指定する．"),
+      y: z
+        .string()
         .optional()
-        .describe("幅，高さ．mm か Q で指定する．"),
+        .describe("y 座標．左上を原点とする．mm か Q で指定する．"),
+      width: z.string().optional().describe("幅．mm か Q で指定する．"),
+      height: z.string().optional().describe("高さ．mm か Q で指定する．"),
     })
   )
   .describe("変更する画像の UUID および属性の配列");
@@ -93,22 +96,27 @@ server.tool(
   },
   async ({ changes }) => {
     const script = `
-  ${getPageItemScriptDefinition}
   var changes = ${JSON.stringify(changes)};
   for (var i = 0; i < changes.length; i++) {
     var item = getPageItemScript(changes[i].uuid);
     if (changes[i].file) {
       item.file = new File(changes[i].file);
     }
-    if (changes[i].position) {
-      item.position = [toPt(changes[i].position[0]), toPt(changes[i].position[1])];
+    if (changes[i].x) {
+      item.left = toPt(changes[i].x);
     }
-    if (changes[i].size) {
-      item.size = [toPt(changes[i].size[0]), toPt(changes[i].size[1])];
+    if (changes[i].y) {
+      item.top = -toPt(changes[i].y);
+    }
+    if (changes[i].width) {
+      item.width = toPt(changes[i].width);
+    }
+    if (changes[i].height) {
+      item.height = toPt(changes[i].height);
     }
   }
 `;
-    executeExtendScript(script);
+    executeExtendScript(script, [getPageItemDefinition, toPtDefinition]);
     return {
       content: [{ type: "text", text: "正常に変更されました．" }],
     };

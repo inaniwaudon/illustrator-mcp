@@ -6,7 +6,7 @@ import {
   executeExtendScript,
   getPageItemScript,
   toPt,
-  ptToMmScript,
+  ptToMmDefinition,
 } from "../extend-utils/utils";
 import { server } from "../server";
 import { jsonScript } from "../extend-utils/json";
@@ -46,7 +46,7 @@ var result = [];`,
   }());`);
     }
     script.push(`JSON.stringify(result);`);
-    const output = executeExtendScript(script.join("\n"));
+    const output = executeExtendScript(script.join("\n"), []);
     return {
       content: [{ type: "text", text: `正常に作成しました．\n\n${output}` }],
     };
@@ -97,7 +97,7 @@ var result = [];`,
       );
     }
     script.push(`JSON.stringify(result);`);
-    const output = executeExtendScript(script.join("\n"));
+    const output = executeExtendScript(script.join("\n"), []);
     return {
       content: [{ type: "text", text: `正常に作成しました．\n\n${output}` }],
     };
@@ -108,7 +108,6 @@ var result = [];`,
 server.tool("list_pathitems", "既存のパスの情報を取得する", {}, async () => {
   const script = `
 ${jsonScript}
-${ptToMmScript}
 
 var doc = ${getDocumentScript};
 var result = [];
@@ -126,7 +125,7 @@ for (var i = 0; i < doc.pathItems.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script);
+  const output = executeExtendScript(script, [ptToMmDefinition]);
   return {
     content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
   };
@@ -210,7 +209,7 @@ server.tool(
 
       lines.push("}());");
     }
-    executeExtendScript(lines.join("\n"));
+    executeExtendScript(lines.join("\n"), []);
     return {
       content: [{ type: "text", text: "正常に変更されました．" }],
     };

@@ -6,7 +6,7 @@ import {
   executeExtendScript,
   getDocumentScript,
   getPageItemScript,
-  ptToMmScript,
+  ptToMmDefinition,
   toPt,
 } from "../extend-utils/utils";
 import { jsonScript } from "../extend-utils/json";
@@ -26,7 +26,7 @@ for (var i = 0; i < ${count}; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script);
+    const output = executeExtendScript(script, []);
     return {
       content: [
         {
@@ -45,7 +45,6 @@ server.tool(
   async () => {
     const script = `
 ${jsonScript}
-${ptToMmScript}
 
 var doc = ${getDocumentScript};
 var result = [];
@@ -67,7 +66,7 @@ for (var i = 0; i < doc.textFrames.length; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script);
+    const output = executeExtendScript(script, [ptToMmDefinition]);
     return {
       content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
     };
@@ -173,7 +172,7 @@ item.textRange.characterAttributes.fillColor = cmyk;`);
       }
       lines.push("}());");
     }
-    executeExtendScript(lines.join("\n"));
+    executeExtendScript(lines.join("\n"), []);
     return {
       content: [{ type: "text", text: "正常に変更されました．" }],
     };
@@ -254,7 +253,7 @@ charAttr.fillColor = cmyk;`);
       lines.push(`}
 }());`);
     }
-    executeExtendScript(lines.join("\n"));
+    executeExtendScript(lines.join("\n"), []);
     return {
       content: [{ type: "text", text: "正常に変更されました．" }],
     };
@@ -271,7 +270,7 @@ for (var i = 0; i < fonts.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script);
+  const output = executeExtendScript(script, []);
   return {
     content: [{ type: "text", text: `正常に取得しました．\n\n${output}` }],
   };

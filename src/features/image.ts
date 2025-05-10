@@ -84,6 +84,10 @@ const multipleImageChangeSchema = z
         .describe("y 座標．左上を原点とする．mm か Q で指定する．"),
       width: z.string().optional().describe("幅．mm か Q で指定する．"),
       height: z.string().optional().describe("高さ．mm か Q で指定する．"),
+      maintainAspectRatio: z
+        .boolean()
+        .optional()
+        .describe("アスペクト比を維持するかどうか．"),
     })
   )
   .describe("変更する画像の UUID および属性の配列");
@@ -109,10 +113,18 @@ server.tool(
       item.top = -toPt(changes[i].y);
     }
     if (changes[i].width) {
-      item.width = toPt(changes[i].width);
+      var afterWidth = toPt(changes[i].width);
+      if (changes[i].maintainAspectRatio) {
+        item.height = afterWidth * (item.height / item.width);
+      }
+      item.width = afterWidth;
     }
     if (changes[i].height) {
-      item.height = toPt(changes[i].height);
+      var afterHeight = toPt(changes[i].height);
+      if (changes[i].maintainAspectRatio) {
+        item.width = afterHeight * (item.width / item.height);
+      }
+      item.height = afterHeight;
     }
   }
 `;

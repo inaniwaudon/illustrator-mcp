@@ -1,7 +1,11 @@
 import { z } from "zod";
 
 import { server } from "../server";
-import { executeExtendScript, getDocumentScript } from "../extend-utils/utils";
+import {
+  executeExtendScript,
+  getDocumentScript,
+  getPageItemDefinition,
+} from "../extend-utils/utils";
 
 server.tool(
   "select_items",
@@ -76,10 +80,57 @@ for (var i = 0; i < doc.pageItems.length; i++) {
     if (uuids[j] === item.note) {
       item.remove();
       break;
+    }
   }
 }
 `;
     executeExtendScript(script, []);
+    return {
+      content: [{ type: "text", text: "オブジェクトを削除しました．" }],
+    };
+  }
+);
+
+const maskItemsSchema = z
+  .array(
+    z.object({
+      maskUuid: z.string().describe("マスクするパスの UUID"),
+      maskedUuids: z
+        .array(z.string())
+        .describe("マスクされる対象のオブジェクトの UUID の配列"),
+    })
+  )
+  .describe("マスクの情報");
+
+server.tool(
+  "mask_items",
+  "複数のオブジェクトをマスクする",
+  {
+    masks: maskItemsSchema,
+  },
+  async ({ masks }) => {
+    const script = `
+var doc = ${getDocumentScript};
+var masks = ${JSON.stringify(masks)};
+for (var i = 0; i < masks.length; i++) {
+  var maskInfo = masks[i];
+  var group = doc.groupItems.add();
+
+  // マスク対象のオブジェクトを追加
+  for (var j = 0; j < maskInfo.maskedUuids.length; j++) {
+    var maskedItem = getPageItemScript(maskInfo.maskedUuids[j]);
+    maskedItem.moveToBeginning(group);
+  }
+
+  // パスを追加
+  var maskItem = getPageItemScript(maskInfo.maskUuid);
+  maskItem.moveToBeginning(group);
+
+  maskItem.clipping = true;
+  group.clipped = true;
+}
+`;
+    executeExtendScript(script, [getPageItemDefinition]);
     return {
       content: [{ type: "text", text: "オブジェクトを削除しました．" }],
     };

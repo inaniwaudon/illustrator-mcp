@@ -2,19 +2,30 @@ import { execSync } from "child_process";
 import fs, { mkdirSync } from "fs";
 import os from "os";
 
-export const executeExtendScript = (script: string, definitions: string[]) => {
+import { jsonDefinition } from "./json";
+
+export const executeExtendScript = (script: string) => {
   // 一時フォルダ生成
   const dir = `${os.homedir()}/illustrator-mcp-tmp`;
   if (!fs.existsSync(dir)) {
     mkdirSync(dir);
   }
 
+  const scriptDefinitions = [
+    createUUIDDefinition,
+    getDocumentDefinition,
+    getPageItemDefinition,
+    jsonDefinition,
+    ptToMmDefinition,
+    toPtDefinition,
+  ];
+
   // ExtendScript 生成
   const extendScriptPath = fs.realpathSync(`${dir}/message.jsx`);
   // 文字化け防止のために，BOM 付きで保存
   const combinedScript = `\ufeff
-  ${definitions.join("\n")}
-  ${script}`;
+${scriptDefinitions.join("\n")}
+${script}`;
   fs.writeFileSync(extendScriptPath, combinedScript);
 
   // AppleScript 生成
@@ -30,23 +41,7 @@ return resultText`;
   return output.toString();
 };
 
-export const toPt = (value: string) => {
-  if (value.includes("mm")) {
-    const mm = Number.parseFloat(value.replace("mm", ""));
-    return mmToPt(mm);
-  }
-  if (value.includes("Q")) {
-    const mm = Number.parseFloat(value.replace("Q", "")) / 4;
-    return mmToPt(mm);
-  }
-  return Number.parseFloat(value);
-};
-
-const mmToPt = (mm: number) => {
-  return mm * (72 / 25.4);
-};
-
-export const toPtDefinition = `
+const toPtDefinition = `
 function mmToPt(mm) {
   return mm * (72 / 25.4);
 }
@@ -63,22 +58,22 @@ function toPt(value) {
   return parseFloat(value);
 }`;
 
-export const ptToMmDefinition = `
+const ptToMmDefinition = `
 function ptToMm(pt) {
   return pt * (25.4 / 72) + "mm";
 }`;
 
-export const getDocumentScript = `
-(function () {
+const getDocumentDefinition = `
+function getDocument() {
   if (app.documents.length > 0) {
     return app.activeDocument;
   }
   return app.documents.add();
-}());`;
+}`;
 
-export const getPageItemDefinition = `
+const getPageItemDefinition = `
 function getPageItem(uuid) {
-  var doc = ${getDocumentScript};
+  var doc = getDocument();
   for (var i = 0; i < doc.pageItems.length; i++) {
     if (doc.pageItems[i].note === uuid) {
       return doc.pageItems[i];
@@ -87,19 +82,8 @@ function getPageItem(uuid) {
   return null;
 }`;
 
-export const getPageItemScript = (uuid: string) => `
-(function () {
-  var doc = ${getDocumentScript};
-  for (var i = 0; i < doc.pageItems.length; i++) {
-    if (doc.pageItems[i].note === "${uuid}") {
-      return doc.pageItems[i];
-    }
-  }
-  return null;
-}());`;
-
-export const createUUIDScript = `
-(function () {
+const createUUIDDefinition = `
+function createUUID() {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
     var r = Math.random() * 16 | 0;
     if (c === "x") {
@@ -108,4 +92,4 @@ export const createUUIDScript = `
       return (r & 0x3 | 0x8).toString(16);
     }
   });
-}());`;
+}`;

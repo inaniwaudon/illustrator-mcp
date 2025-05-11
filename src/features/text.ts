@@ -1,32 +1,24 @@
 import z from "zod";
 
 import { server } from "../server";
-import {
-  createUUIDScript,
-  executeExtendScript,
-  getDocumentScript,
-  getPageItemScript,
-  ptToMmDefinition,
-  toPt,
-} from "../extend-utils/utils";
-import { jsonDefinition } from "../extend-utils/json";
+import { executeExtendScript } from "../extend-utils/utils";
 
 server.tool(
   "create_textframes",
-  "Place multiple text frames in the document.",
+  "Places multiple text frames in the document.",
   { count: z.number().describe("Number of text frames to place") },
   async ({ count }) => {
     const script = `
-var doc = ${getDocumentScript};
+var doc = getDocument();
 var result = [];
 for (var i = 0; i < ${count}; i++) {
   var textFrame = doc.textFrames.add();
-  textFrame.note = ${createUUIDScript};
+  textFrame.note = createUUID();
   result.push({ uuid: textFrame.note });
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script, []);
+    const output = executeExtendScript(script);
     return {
       content: [
         {
@@ -40,34 +32,44 @@ JSON.stringify(result);
 
 server.tool(
   "list_textframes",
-  "Get information of existing text frames",
+  "Gets information of existing text frames.",
   {},
   async () => {
     const script = `
-var doc = ${getDocumentScript};
-var result = [];
+var doc = getDocument();
+var results = [];
 for (var i = 0; i < doc.textFrames.length; i++) {
   var item = doc.textFrames[i];
   if (!item.note) {
-    item.note = ${createUUIDScript};
+    item.note = createUUID();
   }
-  result.push({
+  var result = {
     uuid: item.note,
+    name: item.name,
     text: item.contents,
-    fontName: item.textRange.characterAttributes.textFont.name,
-    fontSize: item.textRange.characterAttributes.size,
-    justification: item.textRange.paragraphAttributes.justification,
-    position: [ptToMm(item.left), -ptToMm(item.top)],
-    size: [ptToMm(item.width), ptToMm(item.height)],
+    x: ptToMm(item.left),
+    y: ptToMm(-item.top),
+    width: ptToMm(item.width),
+    height: ptToMm(item.height),
     selected: item.selected,
-  });
+    locked: item.locked,
+  };
+  if (item.characters.length > 0) {
+    var character = item.characters[0];
+    var paragraph = item.paragraphs[0];
+    var charAttr = character.characterAttributes;
+    var paragraphAttr = paragraph.paragraphAttributes;
+
+    /*result.fontName = charAttr.textFont.name;
+    result.lineHeight = paragraphAttr.leading;
+    result.fontSize = charAttr.size;
+    //result.justification = paragraphAttr.justification;*/
+  }
+  results.push(result);
 }
-JSON.stringify(result);
+JSON.stringify(results);
 `;
-    const output = executeExtendScript(script, [
-      jsonDefinition,
-      ptToMmDefinition,
-    ]);
+    const output = executeExtendScript(script);
     return {
       content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
     };
@@ -111,71 +113,60 @@ const changeTextFramesSchema = z
 
 server.tool(
   "change_textframes",
-  "Change attributes of multiple text frames",
+  "Changes attributes of multiple text frames.",
   {
     changes: changeTextFramesSchema,
   },
   async ({ changes }) => {
-    let lines: string[] = [];
-    for (const change of changes) {
-      lines.push("(function () {");
-      lines.push(`var item = ${getPageItemScript(change.uuid)};`);
-      if (change.text) {
-        lines.push(
-          `item.contents = "${change.text?.replaceAll("\n", "\\n")}";`
-        );
-      }
-      if (change.fontName) {
-        lines.push(
-          `item.textRange.characterAttributes.textFont = app.textFonts.getByName("${change.fontName}");`
-        );
-      }
-      if (change.fontSize) {
-        lines.push(
-          `item.textRange.characterAttributes.size = ${toPt(change.fontSize)};`
-        );
-      }
-      if (change.justification) {
-        lines.push(`
-var str = \"${change.justification}\";
-var justification = Justification.FULLJUSTIFY;
-if (str === \"left\") {
-  justification = Justification.LEFT;
-}
-if (str === \"center\") {
-  justification = Justification.CENTER;
-}
-if (str === \"right\") {
-  justification = Justification.RIGHT;
-}
-item.paragraphs[0].paragraphAttributes.justification = justification;`);
-      }
+    const script = `
+var inputs = ${JSON.stringify(changes)};
 
-      const cmyk = change.colorCmyk;
-      if (cmyk) {
-        lines.push(`
-var cmyk = new CMYKColor();
-cmyk.cyan = ${cmyk[0]};
-cmyk.magenta = ${cmyk[1]};
-cmyk.yellow = ${cmyk[2]};
-cmyk.black = ${cmyk[3]};
-item.textRange.characterAttributes.fillColor = cmyk;`);
-      }
-
-      // 座標とサイズ
-      if (change.position) {
-        const x = toPt(change.position[0]);
-        const y = -toPt(change.position[1]);
-        lines.push(`item.position = [${x}, ${y}];`);
-      }
-      if (change.size) {
-        const width = toPt(change.size[0]);
-        const height = toPt(change.size[1]);
-        lines.push(`item.size = [${width}, ${height}];`);
-      }
-      lines.push("}());");
+for (var i = 0; i < inputs.length; i++) {
+  var item = getPageItem(inputs[i].uuid);
+  if (inputs[i].text) {
+    item.contents = inputs[i].text.replace(/\\n/g, "\\n");
+  }
+  if (inputs[i].fontName) {
+    item.textRange.characterAttributes.textFont = app.textFonts.getByName(inputs[i].fontName);
+  }
+  if (inputs[i].fontSize) {
+    item.textRange.characterAttributes.size = toPt(inputs[i].fontSize);
+  }
+  if (inputs[i].justification) {
+    var str = inputs[i].justification;
+    var justification = Justification.FULLJUSTIFY;
+    if (str === "left") {
+      justification = Justification.LEFT;
     }
-    executeExtendScript(lines.join("\n"), []);
+    if (str === "center") {
+      justification = Justification.CENTER;
+    }
+    if (str === "right") {
+      justification = Justification.RIGHT;
+    }
+    item.paragraphs[0].paragraphAttributes.justification = justification;
+  }
+  if (inputs[i].colorCmyk) {
+    var cmyk = new CMYKColor();
+    cmyk.cyan = inputs[i].colorCmyk[0];
+    cmyk.magenta = inputs[i].colorCmyk[1];
+    cmyk.yellow = inputs[i].colorCmyk[2];
+    cmyk.black = inputs[i].colorCmyk[3];
+    item.textRange.characterAttributes.fillColor = cmyk;
+  }
+  if (inputs[i].position) {
+    var x = toPt(inputs[i].position[0]);
+    var y = -toPt(inputs[i].position[1]);
+    item.position = [x, y];
+  }
+  if (inputs[i].size) {
+    var width = toPt(inputs[i].size[0]);
+    var height = toPt(inputs[i].size[1]);
+    item.size = [width, height];
+  }
+}
+`;
+    executeExtendScript(script);
     return {
       content: [{ type: "text", text: "Changed successfully." }],
     };
@@ -186,11 +177,15 @@ const changeCharactersSchema = z.array(
   z.object({
     range: z.object({ from: z.number(), to: z.number() }),
     fontName: z.string().optional().describe("Font name"),
-    fontSize: z.string().optional().describe("Font size (specify in mm or Q)"),
+    fontSize: z.string().optional().describe("Font size. Specify in mm or Q."),
+    lineHeight: z
+      .string()
+      .optional()
+      .describe("Line height. Specify in mm or Q."),
     baselineShift: z
       .string()
       .optional()
-      .describe("Baseline shift (specify in mm or Q)"),
+      .describe("Baseline shift. Specify in mm or Q."),
     horizontalScale: z
       .number()
       .optional()
@@ -203,57 +198,60 @@ const changeCharactersSchema = z.array(
       .array(z.number())
       .length(4)
       .optional()
-      .describe("Text color (array of CMYK values from 0 to 100)"),
+      .describe("Text color. Array of CMYK values from 0 to 100."),
   })
 );
 
 server.tool(
   "change_characters",
-  "Change attributes of multiple character ranges in a single text frame",
+  "Changes attributes of multiple character ranges in a single text frame.",
   {
     uuid: z.string(),
     changes: changeCharactersSchema,
   },
   async ({ uuid, changes }) => {
-    let lines: string[] = [`var item = ${getPageItemScript(uuid)};`];
-    for (const change of changes) {
-      lines.push(`
-(function () {
-  var chars = item.characters.slice(${change.range.from}, ${change.range.to});
-  for (var i = 0; i < chars.length; i++) {
-    var charAttr = chars[i].characterAttributes;
-`);
-      if (change.fontName) {
-        lines.push(
-          `charAttr.textFont = app.textFonts.getByName(\"${change.fontName}\");`
-        );
-      }
-      if (change.fontSize) {
-        lines.push(`charAttr.size = ${toPt(change.fontSize)};`);
-      }
-      if (change.baselineShift) {
-        lines.push(`charAttr.baselineShift = ${toPt(change.baselineShift)};`);
-      }
-      if (change.horizontalScale) {
-        lines.push(`charAttr.horizontalScale = ${change.horizontalScale};`);
-      }
-      if (change.verticalScale) {
-        lines.push(`charAttr.verticalScale = ${change.verticalScale};`);
-      }
-      const cmyk = change.colorCmyk;
-      if (cmyk) {
-        lines.push(`
-var cmyk = new CMYKColor();
-cmyk.cyan = ${cmyk[0]};
-cmyk.magenta = ${cmyk[1]};
-cmyk.yellow = ${cmyk[2]};
-cmyk.black = ${cmyk[3]};
-charAttr.fillColor = cmyk;`);
-      }
-      lines.push(`}
-}());`);
+    const script = `
+var inputs = ${JSON.stringify(changes)};
+var item = getPageItem("${uuid}");
+
+for (var i = 0; i < inputs.length; i++) {
+  var from = Math.min(inputs[i].range.from, item.characters.length);
+  var to = Math.min(inputs[i].range.to, item.characters.length);
+  for (var j = from; j < to; j++) {
+    var character = item.characters[j];
+    var charAttr = character.characterAttributes;
+
+    if (inputs[i].fontName) {
+      charAttr.textFont = app.textFonts.getByName(inputs[i].fontName);
     }
-    executeExtendScript(lines.join("\n"), []);
+    if (inputs[i].fontSize) {
+      charAttr.size = toPt(inputs[i].fontSize);
+    }
+    if (inputs[i].lineHeight) {
+      charAttr.leading = toPt(inputs[i].lineHeight);
+      charAttr.autoLeading = false;
+    }
+    if (inputs[i].baselineShift) {
+      charAttr.baselineShift = toPt(inputs[i].baselineShift);
+    }
+    if (inputs[i].horizontalScale) {
+      charAttr.horizontalScale = inputs[i].horizontalScale;
+    }
+    if (inputs[i].verticalScale) {
+      charAttr.verticalScale = inputs[i].verticalScale;
+    }
+    if (inputs[i].colorCmyk) {
+      var cmyk = new CMYKColor();
+      cmyk.cyan = inputs[i].colorCmyk[0];
+      cmyk.magenta = inputs[i].colorCmyk[1];
+      cmyk.yellow = inputs[i].colorCmyk[2];
+      cmyk.black = inputs[i].colorCmyk[3];
+      charAttr.fillColor = cmyk;
+    }
+  }
+}
+`;
+    executeExtendScript(script);
     return {
       content: [{ type: "text", text: "Changed successfully." }],
     };
@@ -269,7 +267,7 @@ for (var i = 0; i < fonts.length; i++) {
 }
 JSON.stringify(result);
 `;
-  const output = executeExtendScript(script, [jsonDefinition]);
+  const output = executeExtendScript(script);
   return {
     content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
   };

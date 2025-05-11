@@ -1,34 +1,26 @@
 import z from "zod";
 
 import { server } from "../server";
-import { jsonDefinition } from "../extend-utils/json";
-import {
-  createUUIDScript,
-  executeExtendScript,
-  getDocumentScript,
-  getPageItemDefinition,
-  ptToMmDefinition,
-  toPtDefinition,
-} from "../extend-utils/utils";
+import { executeExtendScript } from "../extend-utils/utils";
 
 server.tool(
   "create_images",
-  "Place multiple images in the document.",
+  "Places multiple images in the document.",
   { paths: z.array(z.string()).describe("Image paths") },
   async ({ paths }) => {
     const script = `
-var doc = ${getDocumentScript};
+var doc = getDocument();
 var paths = ${JSON.stringify(paths)};
 var result = [];
 for (var i = 0; i < paths.length; i++) {
   var image = doc.placedItems.add();
   image.file = new File(paths[i]);
-  image.note = ${createUUIDScript};
+  image.note = createUUID();
   result.push({ uuid: image.note });
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script, []);
+    const output = executeExtendScript(script);
     return {
       content: [
         {
@@ -42,16 +34,16 @@ JSON.stringify(result);
 
 server.tool(
   "list_images",
-  "Get information of existing images",
+  "Gets information of existing images.",
   {},
   async () => {
     const script = `
-var doc = ${getDocumentScript};
+var doc = getDocument();
 var result = [];
 for (var i = 0; i < doc.placedItems.length; i++) {
   var item = doc.placedItems[i];
   if (!item.note) {
-    item.note = ${createUUIDScript};
+    item.note = createUUID();
   }
   result.push({
     uuid: item.note,
@@ -65,10 +57,7 @@ for (var i = 0; i < doc.placedItems.length; i++) {
 }
 JSON.stringify(result);
 `;
-    const output = executeExtendScript(script, [
-      jsonDefinition,
-      ptToMmDefinition,
-    ]);
+    const output = executeExtendScript(script);
     return {
       content: [{ type: "text", text: `Retrieved successfully.\n\n${output}` }],
     };
@@ -100,41 +89,42 @@ const multipleImageChangeSchema = z
 
 server.tool(
   "change_images",
-  "Change attributes of multiple images",
+  "Changes attributes of multiple images.",
   {
     changes: multipleImageChangeSchema,
   },
   async ({ changes }) => {
     const script = `
-  var changes = ${JSON.stringify(changes)};
-  for (var i = 0; i < changes.length; i++) {
-    var item = getPageItemScript(changes[i].uuid);
-    if (changes[i].file) {
-      item.file = new File(changes[i].file);
-    }
-    if (changes[i].x) {
-      item.left = toPt(changes[i].x);
-    }
-    if (changes[i].y) {
-      item.top = -toPt(changes[i].y);
-    }
-    if (changes[i].width) {
-      var afterWidth = toPt(changes[i].width);
-      if (changes[i].maintainAspectRatio) {
-        item.height = afterWidth * (item.height / item.width);
-      }
-      item.width = afterWidth;
-    }
-    if (changes[i].height) {
-      var afterHeight = toPt(changes[i].height);
-      if (changes[i].maintainAspectRatio) {
-        item.width = afterHeight * (item.width / item.height);
-      }
-      item.height = afterHeight;
-    }
+var inputs = ${JSON.stringify(changes)};
+
+for (var i = 0; i < inputs.length; i++) {
+  var item = getPageItem(inputs[i].uuid);
+  if (inputs[i].file) {
+    item.file = new File(inputs[i].file);
   }
+  if (inputs[i].x) {
+    item.left = toPt(inputs[i].x);
+  }
+  if (inputs[i].y) {
+    item.top = -toPt(inputs[i].y);
+  }
+  if (inputs[i].width) {
+    var afterWidth = toPt(inputs[i].width);
+    if (inputs[i].maintainAspectRatio) {
+      item.height = afterWidth * (item.height / item.width);
+    }
+    item.width = afterWidth;
+  }
+  if (inputs[i].height) {
+    var afterHeight = toPt(inputs[i].height);
+    if (inputs[i].maintainAspectRatio) {
+      item.width = afterHeight * (item.width / item.height);
+    }
+    item.height = afterHeight;
+  }
+}
 `;
-    executeExtendScript(script, [getPageItemDefinition, toPtDefinition]);
+    executeExtendScript(script);
     return {
       content: [{ type: "text", text: "Changed successfully." }],
     };

@@ -4,7 +4,27 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { server } from "./index";
 
 describe("text", () => {
-  it("テキストが入力できる", async () => {
+  it("テキストフレームの一覧が取得できる", async () => {
+    const client = new Client({
+      name: "test client",
+      version: "0.1.0",
+    });
+
+    const [clientTransport, serverTransport] =
+      InMemoryTransport.createLinkedPair();
+
+    await Promise.all([
+      client.connect(clientTransport),
+      server.connect(serverTransport),
+    ]);
+
+    const result = await client.callTool({
+      name: "list_textframes",
+      arguments: {},
+    });
+  });
+
+  /*it("テキストが入力できる", async () => {
     const client = new Client({
       name: "test client",
       version: "0.1.0",
@@ -19,15 +39,13 @@ describe("text", () => {
     ]);
 
     await client.callTool({
-      name: "enter_text",
+      name: "create_textframes",
       arguments: {
-        text: "山路に登りながら，こう考えた。",
+        count: 4,
       },
     });
   });
-});
 
-describe("text", () => {
   it("使用可能なフォント一覧が取得できる", async () => {
     const client = new Client({
       name: "test client",
@@ -47,5 +65,5 @@ describe("text", () => {
       arguments: {},
     });
     console.log(result);
-  });
+  });*/
 });

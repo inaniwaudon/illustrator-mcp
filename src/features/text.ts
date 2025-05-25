@@ -38,12 +38,17 @@ server.tool(
     const script = `
 var doc = getDocument();
 var results = [];
+var result = {};
+var item = null;
+var charAttr = null;
+var paragraphAttr = null;
+
 for (var i = 0; i < doc.textFrames.length; i++) {
-  var item = doc.textFrames[i];
+  item = doc.textFrames[i];
   if (!item.note) {
     item.note = createUUID();
   }
-  var result = {
+  result = {
     uuid: item.note,
     name: item.name,
     text: item.contents,
@@ -55,15 +60,28 @@ for (var i = 0; i < doc.textFrames.length; i++) {
     locked: item.locked,
   };
   if (item.characters.length > 0) {
-    var character = item.characters[0];
-    var paragraph = item.paragraphs[0];
-    var charAttr = character.characterAttributes;
-    var paragraphAttr = paragraph.paragraphAttributes;
-
-    /*result.fontName = charAttr.textFont.name;
-    result.lineHeight = paragraphAttr.leading;
-    result.fontSize = charAttr.size;
-    //result.justification = paragraphAttr.justification;*/
+    charAttr = item.characters[0].characterAttributes;
+    paragraphAttr = item.paragraphs[0].paragraphAttributes;
+    try {
+      result.fontName = charAttr.textFont.name;
+    } catch (e) {
+      result.fontName = "";
+    }
+    try {
+      result.lineHeight = charAttr.leading;
+    } catch (e) {
+      result.lineHeight = 0;
+    }
+    try {
+      result.fontSize = charAttr.size;
+    } catch (e) {
+      result.fontSize = 0;
+    }
+    try {
+      result.justification = paragraphAttr.justification;
+    } catch (e) {
+      result.justification = "";
+    }
   }
   results.push(result);
 }
@@ -101,70 +119,75 @@ const changeTextFramesSchema = z
         .array(z.string())
         .optional()
         .describe(
-          "X and Y coordinates (origin at top left, specify in mm or Q)"
+          "X and Y coordinates with units. Origin at top left. Specify in mm or Q."
         ),
       size: z
         .array(z.string())
         .optional()
-        .describe("Width and height (specify in mm or Q)"),
+        .describe("Width and height with units. Specify in mm or Q."),
     })
   )
   .describe("Array of UUIDs and attributes of text frames to change");
 
 server.tool(
   "change_textframes",
-  "Changes attributes of multiple text frames.",
+  "Changes attributes of multiple text frames. Maximum 10 items.",
   {
     changes: changeTextFramesSchema,
   },
   async ({ changes }) => {
     const script = `
-var inputs = ${JSON.stringify(changes)};
-
-for (var i = 0; i < inputs.length; i++) {
-  var item = getPageItem(inputs[i].uuid);
-  if (inputs[i].text) {
-    item.contents = inputs[i].text.replace(/\\n/g, "\\n");
-  }
-  if (inputs[i].fontName) {
-    item.textRange.characterAttributes.textFont = app.textFonts.getByName(inputs[i].fontName);
-  }
-  if (inputs[i].fontSize) {
-    item.textRange.characterAttributes.size = toPt(inputs[i].fontSize);
-  }
-  if (inputs[i].justification) {
-    var str = inputs[i].justification;
-    var justification = Justification.FULLJUSTIFY;
-    if (str === "left") {
-      justification = Justification.LEFT;
+function run() {
+  var inputs = ${JSON.stringify(changes)};
+  var item = null;
+  
+  for (var i = 0; i < inputs.length; i++) {
+    item = getPageItem(inputs[i].uuid);
+    if (inputs[i].text) {
+      item.contents = inputs[i].text.replace(/\\n/g, "\\n");
     }
-    if (str === "center") {
-      justification = Justification.CENTER;
+    if (inputs[i].fontName) {
+      item.textRange.characterAttributes.textFont = app.textFonts.getByName(inputs[i].fontName);
     }
-    if (str === "right") {
-      justification = Justification.RIGHT;
+    if (inputs[i].fontSize) {
+      item.textRange.characterAttributes.size = toPt(inputs[i].fontSize);
     }
-    item.paragraphs[0].paragraphAttributes.justification = justification;
-  }
-  if (inputs[i].colorCmyk) {
-    var cmyk = new CMYKColor();
-    cmyk.cyan = inputs[i].colorCmyk[0];
-    cmyk.magenta = inputs[i].colorCmyk[1];
-    cmyk.yellow = inputs[i].colorCmyk[2];
-    cmyk.black = inputs[i].colorCmyk[3];
-    item.textRange.characterAttributes.fillColor = cmyk;
-  }
-  if (inputs[i].position) {
-    var x = toPt(inputs[i].position[0]);
-    var y = -toPt(inputs[i].position[1]);
-    item.position = [x, y];
-  }
-  if (inputs[i].size) {
-    var width = toPt(inputs[i].size[0]);
-    var height = toPt(inputs[i].size[1]);
-    item.size = [width, height];
+    /*if (inputs[i].justification) {
+      var str = inputs[i].justification;
+      var justification = Justification.FULLJUSTIFY;
+      if (str === "left") {
+        justification = Justification.LEFT;
+      }
+      if (str === "center") {
+        justification = Justification.CENTER;
+      }
+      if (str === "right") {
+        justification = Justification.RIGHT;
+      }
+      item.paragraphs[0].paragraphAttributes.justification = justification;
+    }*/
+    if (inputs[i].colorCmyk) {
+      var cmyk = new CMYKColor();
+      cmyk.cyan = inputs[i].colorCmyk[0];
+      cmyk.magenta = inputs[i].colorCmyk[1];
+      cmyk.yellow = inputs[i].colorCmyk[2];
+      cmyk.black = inputs[i].colorCmyk[3];
+      item.textRange.characterAttributes.fillColor = cmyk;
+    }
+    if (inputs[i].position) {
+      var x = toPt(inputs[i].position[0]);
+      var y = -toPt(inputs[i].position[1]);
+      item.position = [x, y];
+    }
+    if (inputs[i].size) {
+      var width = toPt(inputs[i].size[0]);
+      var height = toPt(inputs[i].size[1]);
+      item.size = [width, height];
+    }
+    $.gc();
   }
 }
+run();
 `;
     executeExtendScript(script);
     return {
@@ -204,7 +227,7 @@ const changeCharactersSchema = z.array(
 
 server.tool(
   "change_characters",
-  "Changes attributes of multiple character ranges in a single text frame.",
+  "Changes attributes of multiple character ranges in a single text frame. Maximum 10 items.",
   {
     uuid: z.string(),
     changes: changeCharactersSchema,

@@ -22,6 +22,62 @@ var doc = app.open(file);
 );
 
 server.tool(
+  "create_document",
+  "Create a document.",
+  {
+    width: z
+      .string()
+      .describe("Width of the document with units. Specify in mm."),
+    height: z
+      .string()
+      .describe("Height of the document with units. Specify in mm."),
+  },
+  async ({ width, height }) => {
+    const script = `
+var doc = app.documents.add();
+doc.artboards[0].artboardRect = [0, 0, toPt("${width}"), -toPt("${height}")];
+`;
+    executeExtendScript(script);
+    return {
+      content: [{ type: "text", text: "Document created." }],
+    };
+  }
+);
+
+server.tool(
+  "save_document",
+  "Saves the document.",
+  {
+    path: z
+      .string()
+      .optional()
+      .describe("Absolute path of the document to save"),
+  },
+  async ({ path }) => {
+    const script = `
+var doc = getDocument();
+var filePath = "${path ?? ""}";
+var newFile = new File(filePath);
+var pdfOptions = new PDFSaveOptions();
+
+if (filePath !== "") {
+  if (filePath.indexOf(".pdf") !== -1) {
+    doc.saveAs(newFile, pdfOptions);
+  } else {
+    doc.saveAs(newFile);
+  }
+} else {
+  doc.save();
+}
+`;
+    executeExtendScript(script);
+    return {
+      content: [{ type: "text", text: "Document saved." }],
+    };
+  }
+);
+
+server.tool(
   "duplicate_artboard",
   "Duplicates the first artboard.",
   {

@@ -6,7 +6,7 @@ import { executeExtendScript } from "../extend-utils/utils";
 server.tool(
   "create_images",
   "Places multiple images in the document.",
-  { paths: z.array(z.string()).describe("Image paths") },
+  { paths: z.array(z.string()).describe("Absolute image paths.") },
   async ({ paths }) => {
     const script = `
 var doc = getDocument();
@@ -68,7 +68,7 @@ const multipleImageChangeSchema = z
   .array(
     z.object({
       uuid: z.string().describe("UUID"),
-      path: z.string().describe("Image path"),
+      path: z.string().optional().describe("Absolute image path"),
       x: z
         .string()
         .optional()

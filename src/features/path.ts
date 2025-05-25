@@ -125,21 +125,26 @@ const changePathsSchema = z
       uuid: z.string(),
       fillCmyk: z
         .array(z.string())
+        .optional()
         .describe("Fill color. Specify values from 0 to 100."),
       strokeCmyk: z
         .array(z.string())
+        .optional()
         .describe("Stroke color. Specify values from 0 to 100."),
-      strokeWidth: z.string().describe("Stroke width. Specify in mm or Q."),
+      strokeWidth: z
+        .string()
+        .optional()
+        .describe("Stroke width with units. Specify in mm or Q."),
       position: z
         .array(z.string())
         .optional()
         .describe(
-          "x and y coordinates. Origin is at top left. Specify in mm or Q."
+          "x and y coordinates with units. Origin is at top left. Specify in mm or Q."
         ),
       size: z
         .array(z.string())
         .optional()
-        .describe("Width and height. Specify in mm or Q."),
+        .describe("Width and height with units. Specify in mm or Q."),
     })
   )
   .describe("Array of UUIDs and attributes of paths to change");
@@ -177,15 +182,20 @@ for (var i = 0; i < inputs.length; i++) {
   if (inputs[i].strokeWidth !== undefined) {
     item.strokeWidth = toPt(inputs[i].strokeWidth);
   }
+  if (inputs[i].size) {
+    var targetWidth = toPt(inputs[i].size[0]);
+    var targetHeight = toPt(inputs[i].size[1]);
+    var originalWidth = item.width;
+    var originalHeight = item.height;
+    var scaleX = (targetWidth / originalWidth) * 100;
+    var scaleY = (targetHeight / originalHeight) * 100;
+    var scaleMatrix = app.getScaleMatrix(scaleX, scaleY);
+    item.transform(scaleMatrix, true, true, true, true, 1, Transformation.CENTER);
+  }
   if (inputs[i].position) {
     var x = toPt(inputs[i].position[0]);
     var y = -toPt(inputs[i].position[1]);
     item.position = [x, y];
-  }
-  if (inputs[i].size) {
-    var width = toPt(inputs[i].size[0]);
-    var height = toPt(inputs[i].size[1]);
-    item.size = [width, height];
   }
 }
 `;
